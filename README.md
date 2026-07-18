@@ -1,53 +1,96 @@
-# Assistant — Phase 1
+# Sharp
 
-A working chat interface wired to Google's Gemini API (free tier). This is the
-minimal core: no auth, no memory, no image gen yet — just a clean, working
-chat loop. Everything else gets added as its own module later.
+A personal AI assistant built by Haider — chat, image generation, voice
+input/output, file & image understanding, and real accounts with saved
+conversation history, all running on free-tier services.
 
-## 1. Get a free API key
+## Features
 
-Go to https://aistudio.google.com/apikey and generate a key. No credit card
-required for the free tier.
+- 💬 Chat, powered by Groq's free API
+- 🖼️ Image generation — type `/image a description`
+- 📎 Attach images or text files (`.txt`, `.md`, `.csv`, `.json`) for Sharp to read
+- 👁️ Vision — attach a photo and ask Sharp about it (auto-switches to a vision model)
+- 🎤 Voice input (speak instead of typing) and 🔊 spoken replies — built into the browser, free
+- 👤 Real accounts — email/password or Google sign-in
+- 🗂️ Multiple saved conversations with a sidebar, like ChatGPT/Claude
+- 🕐 Sharp knows the current date/time in *your* timezone, not the server's
 
-## 2. Run it locally
+## Tech stack
 
-You'll need [Node.js](https://nodejs.org) 18+ installed.
+- **Next.js** (App Router) + **Tailwind CSS** — frontend
+- **Groq API** — the language model (`openai/gpt-oss-120b`) and vision model (`qwen/qwen3.6-27b`)
+- **Supabase** — auth (email/password + Google) and Postgres database for chat history
+- **Pollinations.ai** — image generation, no key required
+
+Everything runs on free tiers. No paid services required.
+
+## Setup
+
+### 1. Install dependencies
 
 ```bash
 npm install
+```
+
+### 2. Get a Groq API key
+
+https://console.groq.com/keys — free, no card required.
+
+### 3. Set up Supabase (accounts + saved chats)
+
+Follow **`SUPABASE_SETUP.md`** in this repo — it walks through creating a
+free Supabase project, running the database schema, and enabling Google
+sign-in. Takes about 10 minutes, one-time setup.
+
+### 4. Environment variables
+
+```bash
 cp .env.example .env.local
-# open .env.local and paste your key in place of "your_key_here"
+```
+
+Fill in:
+```
+GROQ_API_KEY=your_groq_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_publishable_key
+```
+
+### 5. Run it
+
+```bash
 npm run dev
 ```
 
-Open http://localhost:3000 — you should see the chat interface.
-
-## 3. Deploy for free
-
-1. Push this folder to a GitHub repo.
-2. Go to https://vercel.com, sign in with GitHub, and import the repo.
-3. In the Vercel project settings, add an environment variable:
-   - `GEMINI_API_KEY` = your key
-4. Deploy. Vercel gives you a free `.vercel.app` URL.
+Open http://localhost:3000 — you'll land on the login page first.
 
 ## Project structure
 
 ```
 app/
-  page.tsx           chat UI (client component)
-  api/chat/route.ts  server route that calls Gemini, keeps the key secret
-  globals.css         blueprint-schematic visual theme
+  page.tsx              main chat UI (sidebar, messages, input, voice)
+  login/page.tsx         sign in / sign up page
+  api/chat/route.ts      calls Groq, injects Sharp's personality + current time
+  auth/callback/route.ts  handles the Google OAuth redirect
+  globals.css             visual design system (colors, the "cut corner" style)
+lib/supabase/            Supabase client setup (browser + server)
+middleware.ts             keeps auth sessions fresh, protects the chat page
+supabase_schema.sql        database schema — run once in Supabase's SQL editor
+supabase_migration_conversations.sql   adds multi-conversation support
 ```
 
-## What's next (Phase 2 ideas)
+## Deploying
 
-- Swap the in-memory message state for a Supabase table so history survives
-  a refresh (Supabase free tier also gives you auth for free).
-- Add a second API route for image generation (Pollinations.ai has no key
-  requirement and is free).
-- Add simple tool-calling in `route.ts` — Gemini supports function calling,
-  which is how you'd let the model decide "search the web" vs "just answer."
+Push to GitHub, then import the repo at https://vercel.com (free tier). Add
+the same three environment variables from `.env.local` in Vercel's project
+settings, then deploy.
 
-Keep each addition as its own route/module rather than growing `route.ts`
-into one giant file — that's the "don't build one giant model" principle
-applied to the code itself.
+## Known limits (free-tier reality)
+
+- Groq's free tier caps requests per minute — heavy rapid testing can
+  briefly hit a rate limit (Sharp will tell you when this happens)
+- Groq occasionally retires/renames models with short notice — if chat
+  suddenly 404s, check https://console.groq.com/docs/models and update the
+  model ids in `app/api/chat/route.ts`
+- Voice input (speech-to-text) works best in Chrome/Edge; Firefox and
+  Safari support it weakly or not at all
+- Attachments are capped at 4MB to keep things fast on the free tier
