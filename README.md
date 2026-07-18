@@ -1,6 +1,6 @@
 # Sharp
 
-**Live:** sharp-ai-vert.vercel.app
+**Live:** https://sharp-ai-vert.vercel.app/login
 
 A personal AI assistant built by Haider — chat, image generation, voice
 input/output, file & image understanding, and real accounts with saved
