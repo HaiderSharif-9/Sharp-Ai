@@ -1,5 +1,7 @@
 # Sharp
 
+**Live:** https://sharp-glm7tvycp-hadiking.vercel.app
+
 A personal AI assistant built by Haider — chat, image generation, voice
 input/output, file & image understanding, and real accounts with saved
 conversation history, all running on free-tier services.
