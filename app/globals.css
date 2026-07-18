@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --graphite: #131317;
+  --graphite-raised: #24242D;
+  --graphite-line: #3C3C48;
+  --edge-violet: #7C6CFF;
+  --edge-ember: #FF7A54;
+  --ash: #9C9CA8;
+  --paper: #F3F2F7;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 1000px 600px at 20% -10%, rgba(124, 108, 255, 0.10), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 100% 20%, rgba(255, 122, 84, 0.06), transparent 55%),
+    var(--graphite);
+  background-attachment: fixed;
+  color: var(--paper);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+.cut-tr {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.cut-bl {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+.card {
+  background: var(--graphite-raised);
+  border: 1px solid var(--graphite-line);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.message-in {
+  animation: rise 0.25s ease-out;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--graphite-line);
+  border-radius: 4px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ash);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.icon-btn:hover {
+  color: var(--paper);
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(255, 122, 84, 0.4); }
+  100% { box-shadow: 0 0 0 8px rgba(255, 122, 84, 0); }
+}
+.listening-pulse {
+  animation: pulse-ring 1.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-in, .listening-pulse { animation: none; }
+}
