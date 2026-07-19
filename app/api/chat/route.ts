@@ -5,7 +5,7 @@ type Message = {
   content: string;
   attachmentImage?: string;
 };
-
+// Using Groq's free tier.
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const GROQ_VISION_MODEL = "qwen/qwen3.6-27b";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
 
   const apiMessages = trimmedMessages.map((m, idx) => {
     const isLast = idx === trimmedMessages.length - 1;
+   
     if (m.attachmentImage && isLast) {
       return {
         role: m.role,
@@ -78,18 +79,24 @@ export async function POST(req: NextRequest) {
   });
 
   try {
+    const requestBody: Record<string, any> = {
+      model: modelToUse,
+      messages: [systemPrompt, ...apiMessages],
+      temperature: 0.8,
+      max_tokens: 1024,
+    };
+
+    if (hasImage) {
+      requestBody.reasoning_format = "hidden";
+    }
+
     const res = await fetch(GROQ_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: modelToUse,
-        messages: [systemPrompt, ...apiMessages],
-        temperature: 0.8,
-        max_tokens: 1024,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!res.ok) {
@@ -110,9 +117,15 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await res.json();
-    const reply =
+    let reply: string =
       data?.choices?.[0]?.message?.content ||
       "(no response generated — the model may have refused this input)";
+
+    // Safety net
+    reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (!reply) {
+      reply = "Sorry, I got a bit tangled up there — could you try that again?";
+    }
 
     return NextResponse.json({ reply });
   } catch (e: any) {
