@@ -136,9 +136,6 @@ Sharp automatically knows the user's local date and time instead of the server's
 
 <img width="1366" height="641" alt="image" src="https://github.com/user-attachments/assets/dbc1072a-65e0-4039-a41d-623f2001c137" />
 
-
-Suggested screenshots:
-
 * Login Page
 * Chat Interface
 * Image Generation
