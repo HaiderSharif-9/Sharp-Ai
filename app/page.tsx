@@ -82,15 +82,22 @@ export default function Home() {
 
   function speak(text: string) {
     if (!voiceEnabled || !("speechSynthesis" in window)) return;
-    // Strip emoji so they don't get read aloud as garbled symbol names
-    const clean = text.replace(
-      /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,
-      ""
-    );
-    window.speechSynthesis.cancel(); // don't stack overlapping replies
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.rate = 1.0;
-    window.speechSynthesis.speak(utterance);
+    try {
+      // Strip emoji so they don't get read aloud as garbled symbol names
+      const clean = text.replace(
+        /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,
+        ""
+      );
+      window.speechSynthesis.cancel(); // Cancel any previous utterances
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.rate = 1.0;
+      utterance.onerror = (error) => {
+        console.error("[Speech] Synthesis error:", error);
+      };
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error("[Speech] Error:", error);
+    }
   }
 
   // get the user's name and their list of past conversations.
@@ -116,6 +123,8 @@ export default function Home() {
       }
 
       if (profile?.name) setUserName(profile.name);
+
+      await refreshConversations();
     }
     load();
   }, []);
@@ -125,32 +134,46 @@ export default function Home() {
   }, [messages, loading]);
 
   async function refreshConversations() {
-    const { data } = await supabase
-      .from("conversations")
-      .select("id, title, updated_at")
-      .order("updated_at", { ascending: false });
-    if (data) setConversations(data);
+    try {
+      const { data, error } = await supabase
+        .from("conversations")
+        .select("id, title, updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      if (data) setConversations(data);
+    } catch (e: any) {
+      console.error("[Conversations] Refresh error:", e);
+    }
   }
 
   async function openConversation(id: string) {
-    setActiveConversationId(id);
-    setLoading(false);
-    const { data: history } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", id)
-      .order("created_at", { ascending: true });
+    try {
+      setActiveConversationId(id);
+      setLoading(false);
+      const { data: history, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", id)
+        .order("created_at", { ascending: true });
 
-    setMessages(
-      (history || []).map((m: any) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        imageUrl: m.image_url || undefined,
-        attachmentImage: m.attachment_image || undefined,
-        attachmentName: m.attachment_name || undefined,
-      }))
-    );
+      if (error) throw error;
+
+      setMessages(
+        (history || []).map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          imageUrl: m.image_url || undefined,
+          attachmentImage: m.attachment_image || undefined,
+          attachmentName: m.attachment_name || undefined,
+        }))
+      );
+    } catch (e: any) {
+      console.error("[Messages] Load error:", e);
+      alert("Failed to load conversation");
+      setMessages([]);
+    }
   }
 
   function startNewChat() {
@@ -162,9 +185,16 @@ export default function Home() {
     e.stopPropagation();
     if (!confirm("Delete this conversation? This can't be undone.")) return;
 
-    await supabase.from("conversations").delete().eq("id", id);
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    if (activeConversationId === id) startNewChat();
+    try {
+      const { error } = await supabase.from("conversations").delete().eq("id", id);
+      if (error) throw error;
+
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (activeConversationId === id) startNewChat();
+    } catch (e: any) {
+      console.error("[Delete] Conversation error:", e);
+      alert("Failed to delete conversation");
+    }
   }
 
   async function ensureConversation(firstMessageText: string): Promise<string> {
@@ -238,13 +268,19 @@ export default function Home() {
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = () => setPendingImage(reader.result as string);
-      reader.onerror = () => setFileError("Couldn't read that image.");
+      reader.onerror = () => {
+        console.error("[File] Image read error:", reader.error);
+        setFileError("Couldn't read that image.");
+      };
       reader.readAsDataURL(file);
     } else if (file.type.startsWith("text/") || /\.(txt|md|csv|json)$/i.test(file.name)) {
       const reader = new FileReader();
       reader.onload = () =>
         setPendingText({ name: file.name, content: reader.result as string });
-      reader.onerror = () => setFileError("Couldn't read that file.");
+      reader.onerror = () => {
+        console.error("[File] Text read error:", reader.error);
+        setFileError("Couldn't read that file.");
+      };
       reader.readAsText(file);
     } else {
       setFileError(`"${file.name}" isn't a supported type — try an image or a text file.`);

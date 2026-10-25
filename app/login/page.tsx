@@ -27,12 +27,28 @@ export default function LoginPage() {
           setLoading(false);
           return;
         }
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { full_name: name.trim() } },
         });
         if (error) throw error;
+
+        // Create profile entry for new user
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .insert({
+              id: data.user.id,
+              name: name.trim(),
+              updated_at: new Date().toISOString(),
+            });
+          if (profileError) {
+            console.error("[Profile] Creation error:", profileError);
+            // Don't fail signup if profile creation fails
+          }
+        }
+
         setMessage("Check your email to confirm your account, then sign in.");
         setMode("signin");
       } else {
@@ -49,11 +65,20 @@ export default function LoginPage() {
 
   async function handleGoogle() {
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) setError(error.message);
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) {
+        setError(error.message || "Google sign-in failed");
+      }
+    } catch (e: any) {
+      setError(e.message || "Google sign-in error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
