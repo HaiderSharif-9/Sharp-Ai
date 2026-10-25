@@ -59,7 +59,8 @@ export default function Home() {
     recognition.lang = "en-US";
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
+      const transcript = event.results?.[0]?.[0]?.transcript || "";
+      if (!transcript) return;
       setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
     };
     recognition.onend = () => setListening(false);
@@ -98,16 +99,23 @@ export default function Home() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.warn("[User] Not authenticated");
+        return;
+      }
 
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from("profiles")
         .select("name")
         .eq("id", user.id)
-        .single();
-      if (profile?.name) setUserName(profile.name);
+        .maybeSingle();
 
-      await refreshConversations();
+      if (error) {
+        console.error("[Profile] Fetch error:", error);
+        return;
+      }
+
+      if (profile?.name) setUserName(profile.name);
     }
     load();
   }, []);
@@ -257,7 +265,7 @@ export default function Home() {
         const convId = await ensureConversation(text);
         const userMsg: Message = { role: "user", content: text };
         setMessages((prev) => [...prev, userMsg]);
-        saveMessage(userMsg, convId);
+        await saveMessage(userMsg, convId);
         setInput("");
         setLoading(true);
 
@@ -268,7 +276,7 @@ export default function Home() {
 
         const assistantMsg: Message = { role: "assistant", content: `here's "${prompt}" 🎨`, imageUrl };
         setMessages((prev) => [...prev, assistantMsg]);
-        saveMessage(assistantMsg, convId);
+        await saveMessage(assistantMsg, convId);
         touchConversation(convId);
         speak(`Here's ${prompt}`);
         setLoading(false);
@@ -294,7 +302,7 @@ export default function Home() {
       const convId = await ensureConversation(text || attachmentName || "New chat");
       const nextMessages: Message[] = [...messages, userMsg];
       setMessages(nextMessages);
-      saveMessage(userMsg, convId);
+      await saveMessage(userMsg, convId);
       setInput("");
       setPendingImage(null);
       setPendingText(null);
@@ -311,14 +319,20 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Request failed");
+        let errorMsg = "Request failed";
+        try {
+          const data = await res.json();
+          errorMsg = data?.error || `Request failed (${res.status})`;
+        } catch {
+          errorMsg = `Request failed (${res.status})`;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
       const assistantMsg: Message = { role: "assistant", content: data.reply };
       setMessages((prev) => [...prev, assistantMsg]);
-      saveMessage(assistantMsg, convId);
+      await saveMessage(assistantMsg, convId);
       touchConversation(convId);
       speak(data.reply);
     } catch (e: any) {
